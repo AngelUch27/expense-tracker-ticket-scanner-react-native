@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, Alert } from "react-native";
 import { router } from "expo-router";
-import { useTransactions } from "./context/TransactionsContext";
+import { useTransactions } from "../context/TransactionsContext";
 
 export default function AddScreen() {
   const { addTransaction } = useTransactions();
