@@ -23,7 +23,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <TransactionsProvider>
         <Stack>
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Inicio" }} />
           <Stack.Screen name="add" options={{ title: "Agregar gasto", headerBackButtonDisplayMode: "minimal" }} />
         </Stack>

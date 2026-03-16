@@ -5,6 +5,7 @@ type Transaction = {
   amount: number;
   description: string;
   category: string;
+  date: string;
 };
 
 type TransactionsContextType = {
