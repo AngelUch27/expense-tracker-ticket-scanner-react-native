@@ -1,25 +1,18 @@
-import { db } from './connection';
+import { db } from "./connection";
 
 export function runMigrations() {
   db.execSync(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      email TEXT,
-      currency TEXT NOT NULL DEFAULT 'MXN',
-      timezone TEXT NOT NULL DEFAULT 'America/Mexico_City',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      email TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
-      color TEXT,
-      icon TEXT,
-      is_default INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       UNIQUE(user_id, name)
     );
@@ -29,11 +22,8 @@ export function runMigrations() {
       user_id INTEGER NOT NULL,
       amount REAL NOT NULL CHECK (amount >= 0),
       type TEXT NOT NULL CHECK (type IN ('fixed', 'variable')),
-      period TEXT NOT NULL DEFAULT 'monthly',
       date TEXT NOT NULL,
       description TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -71,35 +61,20 @@ export function runMigrations() {
       detected_total REAL,
       detected_date TEXT,
       detected_merchant TEXT,
-      detected_currency TEXT,
-      suggested_category_id INTEGER,
-      status TEXT NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'confirmed', 'rejected')),
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (suggested_category_id) REFERENCES categories(id) ON DELETE SET NULL
+      status TEXT NOT NULL DEFAULT 'pending',
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS expenses (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       category_id INTEGER NOT NULL,
-      receipt_id INTEGER,
       amount REAL NOT NULL CHECK (amount >= 0),
       date TEXT NOT NULL,
       merchant TEXT,
       description TEXT,
-      source TEXT NOT NULL DEFAULT 'manual'
-        CHECK (source IN ('manual', 'ticket')),
-      currency TEXT NOT NULL DEFAULT 'MXN',
-      notes TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      deleted_at TEXT,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT,
-      FOREIGN KEY (receipt_id) REFERENCES receipts(id) ON DELETE SET NULL
+      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT
     );
 
     CREATE TABLE IF NOT EXISTS alerts (

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { loginUser, registerUser } from "../../lib/db/auth";
 import {
   View,
   Text,
@@ -13,10 +14,11 @@ import { router } from "expo-router";
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const goHome = () => router.replace("/(tabs)");
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const e = email.trim();
 
     if (!e || !password) {
@@ -24,11 +26,18 @@ export default function LoginScreen() {
       return;
     }
 
-    // por ahora: siempre “funciona”
-    goHome();
+    try {
+      setLoading(true);
+      await loginUser(e, password);
+      goHome();
+    } catch (error: any) {
+      Alert.alert("Error", error?.message || "No se pudo iniciar sesión.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     const e = email.trim();
 
     if (!e || !password) {
@@ -36,9 +45,15 @@ export default function LoginScreen() {
       return;
     }
 
-    // por ahora: siempre “funciona”
-    // después aquí haremos /auth/register
-    goHome();
+    try {
+      setLoading(true);
+      await registerUser(e, password);
+      goHome();
+    } catch (error: any) {
+      Alert.alert("Error", error?.message || "No se pudo registrar.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -58,6 +73,7 @@ export default function LoginScreen() {
           autoComplete="email"
           style={styles.input}
           placeholderTextColor="#888"
+          editable={!loading}
         />
 
         <Text style={[styles.label, { marginTop: 12 }]}>Contraseña</Text>
@@ -70,23 +86,34 @@ export default function LoginScreen() {
           autoComplete="password"
           style={styles.input}
           placeholderTextColor="#888"
+          editable={!loading}
         />
 
-        <Pressable style={styles.primaryBtn} onPress={handleLogin}>
-          <Text style={styles.primaryBtnText}>Iniciar sesión</Text>
+        <Pressable
+          style={[styles.primaryBtn, loading && styles.disabledBtn]}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          <Text style={styles.primaryBtnText}>
+            {loading ? "Cargando..." : "Iniciar sesión"}
+          </Text>
         </Pressable>
 
-        <Pressable style={styles.secondaryBtn} onPress={handleRegister}>
-          <Text style={styles.secondaryBtnText}>Registrarse</Text>
+        <Pressable
+          style={[styles.secondaryBtn, loading && styles.disabledBtn]}
+          onPress={handleRegister}
+          disabled={loading}
+        >
+          <Text style={styles.secondaryBtnText}>
+            {loading ? "Cargando..." : "Registrarse"}
+          </Text>
         </Pressable>
-
-        <Text style={styles.hint}>
-          *Por ahora es demo: con cualquier correo/contraseña te deja entrar.
-        </Text>
       </View>
 
       {Platform.OS === "web" ? (
-        <Text style={styles.footer}>Estás en modo web (localhost). También funciona en Expo Go.</Text>
+        <Text style={styles.footer}>
+          Estás en modo web (localhost). También funciona en Expo Go.
+        </Text>
       ) : null}
     </View>
   );
@@ -159,6 +186,9 @@ const styles = StyleSheet.create({
     color: "#111",
     fontWeight: "700",
     fontSize: 16,
+  },
+  disabledBtn: {
+    opacity: 0.7,
   },
   hint: {
     marginTop: 10,

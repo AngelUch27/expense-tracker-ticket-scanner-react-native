@@ -1,7 +1,8 @@
 import { router } from "expo-router";
-import { Button, StyleSheet, Text, View } from "react-native";
+import { Button, StyleSheet, Text, View, Alert } from "react-native";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/db/connection";
+import { logoutUser } from "@/lib/db/auth";
 
 export default function HomeScreen() {
   const [monthlyTotal, setMonthlyTotal] = useState(0);
@@ -13,14 +14,16 @@ export default function HomeScreen() {
   function loadMonthlyTotal() {
     try {
       const now = new Date();
-      const month = now.getMonth() + 1;
-      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const year = String(now.getFullYear());
 
       const rows = db.getAllSync(
-        `SELECT SUM(amount) as total FROM expenses 
-         WHERE strftime('%m', date) = '${month.toString().padStart(2, "0")}'
-         AND strftime('%Y', date) = '${year}'`
-      );
+        `SELECT SUM(amount) as total
+         FROM expenses
+         WHERE strftime('%m', date) = ?
+           AND strftime('%Y', date) = ?`,
+        [month, year]
+      ) as { total: number | null }[];
 
       const total = rows?.[0]?.total ?? 0;
       setMonthlyTotal(total);
@@ -28,6 +31,15 @@ export default function HomeScreen() {
       console.log("Error loading monthly total:", error);
     }
   }
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      router.replace("/(auth)/login");
+    } catch (error) {
+      Alert.alert("Error", "No se pudo cerrar sesión.");
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -49,6 +61,14 @@ export default function HomeScreen() {
         <Button
           title="Ver movimientos"
           onPress={() => router.push("/(tabs)/transactions")}
+        />
+      </View>
+
+      <View style={styles.button}>
+        <Button
+          title="Cerrar sesión"
+          onPress={handleLogout}
+          color="#dc2626"
         />
       </View>
     </View>
