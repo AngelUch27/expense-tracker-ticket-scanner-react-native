@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 import {
   View,
   Text,
@@ -9,18 +10,34 @@ import {
 } from "react-native";
 
 import { router } from "expo-router";
-import { useTransactions } from "../context/TransactionsContext";
 
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Dropdown } from "react-native-element-dropdown";
+import { expenseRepository } from "../lib/repositories/expense.repository";
 
 export default function AddScreen() {
-  const { addTransaction } = useTransactions();
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text>Cargando Sesion...</Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <Text>No hay sesión activa</Text>
+      </View>
+    );
+  }
+    
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
 
@@ -32,23 +49,44 @@ export default function AddScreen() {
     { label: "Entertainment", value: "Entertainment" },
   ];
 
+  type CreateExpenseInput ={
+    userId: number;
+    amount: number;
+    date: string;
+    description? : string | null;
+  };
+
+  function formatLocalDate(date: Date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
   const handleSave = () => {
-    if (!amount || !description || !category) {
+    if (!user) {
+      console.error("No user logged in");
+      return 
+    }
+
+    if (!amount || !description) {
       Alert.alert("Error", "Completa todos los campos");
       return;
     }
 
-    addTransaction({
-      amount: parseFloat(amount),
+    const newExpense: CreateExpenseInput = {
+      userId: user.id,
+      amount: Number(amount),
+      date: formatLocalDate(date),
       description,
-      category,
-      date: date.toISOString(),
-    });
+    };
 
+    expenseRepository.create(newExpense);
     router.back();
   };
 
   return (
+    
     <View style={styles.container}>
       <Text style={styles.title}>Agregar Gasto</Text>
 

@@ -10,11 +10,13 @@ import {
   Platform,
 } from "react-native";
 import { router } from "expo-router";
+import { useAuth } from "@/context/AuthContext";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
   const goHome = () => router.replace("/(tabs)");
 
@@ -28,7 +30,12 @@ export default function LoginScreen() {
 
     try {
       setLoading(true);
-      await loginUser(e, password);
+      const user = await loginUser(e, password);
+      login({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      });
       goHome();
     } catch (error: any) {
       Alert.alert("Error", error?.message || "No se pudo iniciar sesión.");
@@ -47,7 +54,12 @@ export default function LoginScreen() {
 
     try {
       setLoading(true);
-      await registerUser(e, password);
+      const user = await registerUser(e, password);
+      login({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      });
       goHome();
     } catch (error: any) {
       Alert.alert("Error", error?.message || "No se pudo registrar.");

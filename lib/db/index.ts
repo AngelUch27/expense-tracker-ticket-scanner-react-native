@@ -3,7 +3,7 @@ import { runMigrations } from './migrations';
 import { resetDatabase } from './reset'; // si es que queremos resetear la bd
 //import { seedDefaultCategories } from './seeds';
 
-const SHOULD_RESET_DB = true; // siempre en FALSO, solo para resetear la bd en caso de que mame algo
+const SHOULD_RESET_DB = false; // siempre en FALSO, TRUE para limpiar tablas 
 
 export function initDatabase() {
 

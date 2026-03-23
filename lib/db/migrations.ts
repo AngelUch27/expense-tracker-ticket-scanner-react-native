@@ -9,14 +9,6 @@ export function runMigrations() {
       password TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(user_id, name)
-    );
-
     CREATE TABLE IF NOT EXISTS incomes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -42,17 +34,6 @@ export function runMigrations() {
       UNIQUE(user_id, period_type, period_key)
     );
 
-    CREATE TABLE IF NOT EXISTS budget_categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      budget_id INTEGER NOT NULL,
-      category_id INTEGER NOT NULL,
-      limit_amount REAL NOT NULL CHECK (limit_amount >= 0),
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE,
-      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
-      UNIQUE(budget_id, category_id)
-    );
-
     CREATE TABLE IF NOT EXISTS receipts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -68,50 +49,40 @@ export function runMigrations() {
     CREATE TABLE IF NOT EXISTS expenses (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
-      category_id INTEGER NOT NULL,
       amount REAL NOT NULL CHECK (amount >= 0),
       date TEXT NOT NULL,
-      merchant TEXT,
       description TEXT,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS alerts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       budget_id INTEGER NOT NULL,
-      category_id INTEGER,
       type TEXT NOT NULL
         CHECK (type IN ('budget_80', 'budget_100', 'overspent')),
       message TEXT NOT NULL,
       is_read INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE,
-      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+      FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS recurring_rules (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       merchant TEXT NOT NULL,
-      category_id INTEGER,
       expected_amount REAL,
       frequency TEXT NOT NULL CHECK (frequency IN ('weekly', 'monthly')),
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
-    CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);
     CREATE INDEX IF NOT EXISTS idx_incomes_user_id_date ON incomes(user_id, date);
     CREATE INDEX IF NOT EXISTS idx_budgets_user_period ON budgets(user_id, period_type, period_key);
-    CREATE INDEX IF NOT EXISTS idx_budget_categories_budget_id ON budget_categories(budget_id);
     CREATE INDEX IF NOT EXISTS idx_receipts_user_id_status ON receipts(user_id, status);
     CREATE INDEX IF NOT EXISTS idx_expenses_user_id_date ON expenses(user_id, date);
-    CREATE INDEX IF NOT EXISTS idx_expenses_category_id_date ON expenses(category_id, date);
     CREATE INDEX IF NOT EXISTS idx_alerts_user_id_created_at ON alerts(user_id, created_at);
   `);
 }

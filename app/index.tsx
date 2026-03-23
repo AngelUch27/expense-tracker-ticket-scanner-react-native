@@ -1,26 +1,21 @@
-import { useEffect } from "react";
+import { Redirect } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
-import { router } from "expo-router";
-import { getCurrentUserId } from "../lib/db/auth";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Index() {
-  useEffect(() => {
-    const checkSession = async () => {
-      const userId = await getCurrentUserId();
+  const { user, loading } = useAuth();
 
-      if (userId) {
-        router.replace("/(tabs)");
-      } else {
-        router.replace("/(auth)/login");
-      }
-    };
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
-    checkSession();
-  }, []);
+  if (user) {
+    return <Redirect href="/(tabs)" />;
+  }
 
-  return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <ActivityIndicator size="large" />
-    </View>
-  );
+  return <Redirect href="/(auth)/login" />;
 }

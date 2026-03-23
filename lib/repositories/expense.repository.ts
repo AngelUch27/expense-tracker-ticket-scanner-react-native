@@ -1,4 +1,4 @@
-import { db } from '../connection';
+import { db } from '../db/connection';
 
 export const expenseRepository = {
   getAllByUser(userId: number) {
@@ -6,11 +6,8 @@ export const expenseRepository = {
       `
       SELECT
         e.*,
-        c.name AS category_name,
-        c.color AS category_color
       FROM expenses e
-      INNER JOIN categories c ON c.id = e.category_id
-      WHERE e.user_id = ? AND e.deleted_at IS NULL
+      WHERE e.user_id = ? 
       ORDER BY e.date DESC, e.id DESC
       `,
       [userId]
@@ -23,7 +20,7 @@ export const expenseRepository = {
     endDate?: string;
     categoryId?: number;
   }) {
-    const conditions = ['e.user_id = ?', 'e.deleted_at IS NULL'];
+    const conditions = ['e.user_id = ?'];
     const params: (string | number)[] = [input.userId];
 
     if (input.startDate) {
@@ -54,76 +51,56 @@ export const expenseRepository = {
 
   create(input: {
     userId: number;
-    categoryId: number;
-    receiptId?: number | null;
     amount: number;
     date: string;
-    merchant?: string | null;
     description?: string | null;
-    source?: 'manual' | 'ticket';
-    currency?: string;
-    notes?: string | null;
   }) {
     db.runSync(
       `
       INSERT INTO expenses (
-        user_id, category_id, receipt_id, amount, date, merchant, description, source, currency, notes
+        user_id, amount, date, description
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?)
       `,
       [
         input.userId,
-        input.categoryId,
-        input.receiptId ?? null,
         input.amount,
         input.date,
-        input.merchant ?? null,
         input.description ?? null,
-        input.source ?? 'manual',
-        input.currency ?? 'MXN',
-        input.notes ?? null,
       ]
     );
   },
 
   update(id: number, input: {
-    categoryId: number;
     amount: number;
     date: string;
     merchant?: string | null;
     description?: string | null;
-    notes?: string | null;
   }) {
     db.runSync(
       `
       UPDATE expenses
       SET
-        category_id = ?,
         amount = ?,
         date = ?,
         merchant = ?,
         description = ?,
-        notes = ?,
-        updated_at = datetime('now')
       WHERE id = ?
       `,
       [
-        input.categoryId,
         input.amount,
         input.date,
         input.merchant ?? null,
         input.description ?? null,
-        input.notes ?? null,
         id,
       ]
     );
   },
 
-  softDelete(id: number) {
+  deleteById(id: number) {
     db.runSync(
       `
-      UPDATE expenses
-      SET deleted_at = datetime('now'), updated_at = datetime('now')
+      DELETE FROM expenses
       WHERE id = ?
       `,
       [id]

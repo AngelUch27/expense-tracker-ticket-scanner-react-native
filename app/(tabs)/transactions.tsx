@@ -1,34 +1,43 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import { FlatList, StyleSheet } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { db } from "@/lib/db/connection";
+import { useAuth } from "@/context/AuthContext";
 
 type Expense = {
   id: number;
   description: string;
   amount: number;
   date?: string;
-  category?: string;
 };
 
 export default function TransactionsScreen() {
+  const { user, loading } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
-  useEffect(() => {
-    loadExpenses();
-  }, []);
-
-  function loadExpenses() {
+  const loadExpenses = useCallback(() => {
+    if (loading || !user) return;
     try {
-      const rows = db.getAllSync("SELECT * FROM expenses ORDER BY id DESC");
+      const rows = db.getAllSync(
+        "SELECT * FROM expenses WHERE user_id = ? ORDER BY date ASC, id ASC",
+        [user.id]
+      );
       setExpenses(rows as Expense[]);
       console.log("Expenses:", rows);
     } catch (err) {
       console.log("DB error:", err);
     }
-  }
+  }, [user]);
+  
+  useFocusEffect(
+    useCallback(() => {
+      if (loading || !user) return;
+      loadExpenses();
+    }, [loading, user, loadExpenses])
+  );
 
   return (
     <ThemedView style={styles.container}>
@@ -55,17 +64,15 @@ export default function TransactionsScreen() {
         <ThemedText type="defaultSemiBold">
           {item.description || "Sin descripción"}
         </ThemedText>
-        <ThemedText>
-          {item.category || "Sin categoría"} {item.date ? `• ${item.date}` : ""}
+        <ThemedText style={styles.date}>
+          {item.date || "Sin fecha"}
         </ThemedText>
       </ThemedView>
-
       <ThemedText style={styles.amount}>
         ${item.amount}
       </ThemedText>
     </ThemedView>
-  )}
-/>
+    )}/>
 
     </ThemedView>
   );
@@ -90,6 +97,12 @@ const styles = StyleSheet.create({
   amount: {
     fontWeight: "bold",
     fontSize: 16,
+  },
+
+  date: {
+    marginTop: 4,
+    opacity: 0.7,
+    fontSize: 13,
   },
 
   title: {

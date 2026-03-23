@@ -1,17 +1,16 @@
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Button, StyleSheet, Text, View, Alert } from "react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { db } from "@/lib/db/connection";
-import { logoutUser } from "@/lib/db/auth";
+import { useAuth } from "@/context/AuthContext";
 
 export default function HomeScreen() {
   const [monthlyTotal, setMonthlyTotal] = useState(0);
+  const { user, loading, logout } = useAuth();
 
-  useEffect(() => {
-    loadMonthlyTotal();
-  }, []);
 
-  function loadMonthlyTotal() {
+  const loadMonthlyTotal = useCallback(() => {
+    if (loading || !user) return;
     try {
       const now = new Date();
       const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -20,9 +19,10 @@ export default function HomeScreen() {
       const rows = db.getAllSync(
         `SELECT SUM(amount) as total
          FROM expenses
-         WHERE strftime('%m', date) = ?
+         WHERE user_id = ?
+           AND strftime('%m', date) = ?
            AND strftime('%Y', date) = ?`,
-        [month, year]
+        [user.id, month, year]
       ) as { total: number | null }[];
 
       const total = rows?.[0]?.total ?? 0;
@@ -30,11 +30,18 @@ export default function HomeScreen() {
     } catch (error) {
       console.log("Error loading monthly total:", error);
     }
-  }
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (loading || !user) return;
+      loadMonthlyTotal();
+    }, [loading, user, loadMonthlyTotal])
+  );
 
   const handleLogout = async () => {
     try {
-      await logoutUser();
+      await logout();
       router.replace("/(auth)/login");
     } catch (error) {
       Alert.alert("Error", "No se pudo cerrar sesión.");

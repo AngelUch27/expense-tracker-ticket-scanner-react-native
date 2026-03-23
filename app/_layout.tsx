@@ -5,30 +5,41 @@ import { initDatabase } from "../lib/db";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { TransactionsProvider } from "@/context/TransactionsContext";
-import { useEffect } from "react";
+import { AuthProvider } from "@/context/AuthContext";
+import { useEffect, useState } from "react";
+import { View, Text } from "react-native";
 
 export default function RootLayout() {
+  const colorScheme = useColorScheme();
+  const [dbReady, setDbReady] = useState(false);
+
   useEffect(() => {
-    try{
+    try {
       initDatabase();
-      console.log('Database initialized successfully');
+      console.log("Database initialized successfully");
+      setDbReady(true);
     } catch (error) {
-      console.error('Error initializing database: ', error);
+      console.error("Error initializing database: ", error);
     }
   }, []);
-  const colorScheme = useColorScheme();
+
+  if (!dbReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>Inicializando base de datos...</Text>
+      </View>
+    );
+  }
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <TransactionsProvider>
+      <AuthProvider>
         <Stack>
           <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Inicio" }} />
           <Stack.Screen name="add" options={{ title: "Agregar gasto", headerBackButtonDisplayMode: "minimal" }} />
         </Stack>
-      </TransactionsProvider>
-
+      </AuthProvider>
       <StatusBar style="auto" />
     </ThemeProvider>
   );
