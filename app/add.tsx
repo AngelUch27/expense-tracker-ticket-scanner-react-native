@@ -7,6 +7,7 @@ import {
   Pressable,
   StyleSheet,
   Alert,
+  Image,
 } from "react-native";
 
 import { router } from "expo-router";
@@ -14,6 +15,8 @@ import { router } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Dropdown } from "react-native-element-dropdown";
 import { expenseRepository } from "../lib/repositories/expense.repository";
+import * as ImagePicker from "expo-image-picker";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function AddScreen() {
   const { user, loading } = useAuth();
@@ -37,17 +40,12 @@ export default function AddScreen() {
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
+  const [ticketPhotoUri, setTicketPhotoUri] = useState<string | null>(null);
+  const [isOpeningCamera, setIsOpeningCamera] = useState(false);
 
-  const categories = [
-    { label: "Food", value: "Food" },
-    { label: "Transport", value: "Transport" },
-    { label: "Shopping", value: "Shopping" },
-    { label: "Bills", value: "Bills" },
-    { label: "Entertainment", value: "Entertainment" },
-  ];
+  
 
   type CreateExpenseInput ={
     userId: number;
@@ -62,6 +60,45 @@ export default function AddScreen() {
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   }
+
+  const callExtractText = async (imageUri: string) => {
+    console.log("callExtractText imageUri:", imageUri);
+
+    // TODO: aqui va a ir lo del OCR xd
+  };
+
+  const handleOpenCamera = async () => {
+    try {
+      setIsOpeningCamera(true);
+
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+
+      if (!permissionResult.granted) {
+        Alert.alert(
+          "Permiso requerido",
+          "Necesitas dar permiso a la cámara para tomar una foto."
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        const photoUri = result.assets[0].uri;
+        setTicketPhotoUri(photoUri);
+        await callExtractText(photoUri);
+      }
+    } catch (error) {
+      console.error("Error opening camera:", error);
+      Alert.alert("Error", "No se pudo abrir la cámara");
+    } finally {
+      setIsOpeningCamera(false);
+    }
+  };
 
   const handleSave = () => {
     if (!user) {
@@ -88,7 +125,21 @@ export default function AddScreen() {
   return (
     
     <View style={styles.container}>
-      <Text style={styles.title}>Agregar Gasto</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Agregar Gasto</Text>
+
+        <Pressable
+          style={styles.cameraButton}
+          onPress={handleOpenCamera}
+          disabled={isOpeningCamera}
+        >
+          {isOpeningCamera ? (
+            <Text style={styles.cameraButtonText}>...</Text>
+          ) : (
+            <Ionicons name="camera" size={26} color="#fff" />
+          )}
+        </Pressable>
+      </View>
 
       <TextInput
         placeholder="Monto (MXN)"
@@ -107,18 +158,6 @@ export default function AddScreen() {
         placeholderTextColor="#888"
       />
 
-      <Dropdown
-        style={styles.dropdown}
-        data={categories}
-        labelField="label"
-        valueField="value"
-        placeholder="Selecciona categoría"
-        value={category}
-        onChange={(item) => {
-          setCategory(item.value);
-        }}
-      />
-
       <Pressable
         style={styles.dateButton}
         onPress={() => setShowPicker(true)}
@@ -127,6 +166,10 @@ export default function AddScreen() {
           Fecha: {date.toLocaleDateString()}
         </Text>
       </Pressable>
+
+      {ticketPhotoUri && (
+        <Image source={{ uri: ticketPhotoUri }} style={styles.previewImage} />
+      )}
 
       {showPicker && (
         <DateTimePicker
@@ -157,10 +200,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 20,
   },
 
   input: {
@@ -193,6 +242,28 @@ const styles = StyleSheet.create({
 
   dateText: {
     color: "#000",
+  },
+
+  cameraButton: {
+    backgroundColor: "#0f766e",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 12,
+  },
+
+  cameraButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  previewImage: {
+    width: "100%",
+    height: 220,
+    borderRadius: 10,
+    marginBottom: 12,
   },
 
   button: {
