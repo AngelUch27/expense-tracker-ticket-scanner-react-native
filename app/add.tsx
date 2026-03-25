@@ -13,14 +13,21 @@ import {
 import { router } from "expo-router";
 
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Dropdown } from "react-native-element-dropdown";
 import { expenseRepository } from "../lib/repositories/expense.repository";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
+import { extractReceiptWithDocumentAi } from "@/lib/services/document-ai-receipt-extractor";
 
 export default function AddScreen() {
   const { user, loading } = useAuth();
-  
+
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState(new Date());
+  const [showPicker, setShowPicker] = useState(false);
+  const [ticketPhotoUri, setTicketPhotoUri] = useState<string | null>(null);
+  const [isOpeningCamera, setIsOpeningCamera] = useState(false);
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -36,16 +43,6 @@ export default function AddScreen() {
       </View>
     );
   }
-    
-
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
-  const [date, setDate] = useState(new Date());
-  const [showPicker, setShowPicker] = useState(false);
-  const [ticketPhotoUri, setTicketPhotoUri] = useState<string | null>(null);
-  const [isOpeningCamera, setIsOpeningCamera] = useState(false);
-
-  
 
   type CreateExpenseInput ={
     userId: number;
@@ -63,8 +60,37 @@ export default function AddScreen() {
 
   const callExtractText = async (imageUri: string) => {
     console.log("callExtractText imageUri:", imageUri);
+    try {
+      const extracted = await extractReceiptWithDocumentAi(imageUri);
 
-    // TODO: aqui va a ir lo del OCR xd
+      if (extracted.amount !== undefined) {
+        setAmount(extracted.amount.toFixed(2));
+      }
+
+      setDescription(extracted.merchant ?? "Comercio no detectado");
+
+      if (extracted.date) {
+        setDate(extracted.date);
+      }
+
+      if (
+        extracted.amount === undefined &&
+        !extracted.merchant &&
+        !extracted.date
+      ) {
+        Alert.alert(
+          "No se detectaron datos",
+          "Document AI no encontró monto, comercio o fecha. Puedes completar los campos manualmente."
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error desconocido";
+      console.error("Document AI OCR error:", error);
+      Alert.alert(
+        "Error OCR",
+        `No se pudo extraer el ticket con Document AI.\n\n${message}`
+      );
+    }
   };
 
   const handleOpenCamera = async () => {
@@ -82,7 +108,7 @@ export default function AddScreen() {
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ["images"],
         allowsEditing: true,
         quality: 0.8,
       });

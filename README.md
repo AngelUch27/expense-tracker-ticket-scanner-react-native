@@ -74,3 +74,33 @@ Escanear el código QR que aparece en la terminal o navegador
 La aplicación se cargará automáticamente en el celular.
 
 ⚠️ Importante: La computadora y el celular deben estar conectados a la misma red WiFi.
+
+## OCR con Google Document AI (setup rapido)
+
+1. Instala Google Cloud SDK y autentica tu cuenta:
+
+   ```bash
+   gcloud auth login
+   gcloud config set project TU_PROJECT_ID
+   ```
+
+2. Crea `.env` desde el ejemplo:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Completa en `.env`:
+- `EXPO_PUBLIC_GOOGLE_DOC_AI_PROJECT_ID`
+- `EXPO_PUBLIC_GOOGLE_DOC_AI_LOCATION` (ej. `us`)
+- `EXPO_PUBLIC_GOOGLE_DOC_AI_PROCESSOR_ID`
+
+4. Refresca token y arranca app:
+
+   ```bash
+   npm run dev:ocr
+   ```
+
+Notas:
+- El token expira, cuando falle OCR vuelve a correr `npm run docai:token`.
+- Este enfoque funciona en Expo Go porque OCR se hace en la API de Google.
