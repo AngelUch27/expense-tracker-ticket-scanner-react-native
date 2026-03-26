@@ -75,32 +75,42 @@ La aplicación se cargará automáticamente en el celular.
 
 ⚠️ Importante: La computadora y el celular deben estar conectados a la misma red WiFi.
 
-## OCR con Google Document AI (setup rapido)
+## OCR con backend (sin gcloud en cada laptop)
 
-1. Instala Google Cloud SDK y autentica tu cuenta:
+Ahora OCR se hace en un backend Cloud Run (`backend/ocr-proxy`) y la app solo consume el endpoint.
 
-   ```bash
-   gcloud auth login
-   gcloud config set project TU_PROJECT_ID
-   ```
+### Para tus amigos (solo pull y correr)
 
-2. Crea `.env` desde el ejemplo:
+1. Instalar dependencias:
 
    ```bash
-   cp .env.example .env
+   npm install
    ```
 
-3. Completa en `.env`:
+2. Iniciar app:
+
+   ```bash
+   npm run dev
+   ```
+
+Listo. Ya no necesitan `gcloud auth login` ni refrescar tokens localmente.
+
+### Deploy backend (solo owner/admin, una sola vez o cuando cambie OCR)
+
+1. Configura en tu `.env`:
 - `EXPO_PUBLIC_GOOGLE_DOC_AI_PROJECT_ID`
 - `EXPO_PUBLIC_GOOGLE_DOC_AI_LOCATION` (ej. `us`)
 - `EXPO_PUBLIC_GOOGLE_DOC_AI_PROCESSOR_ID`
 
-4. Refresca token y arranca app:
+2. Despliega Cloud Run:
 
    ```bash
-   npm run dev:ocr
+   npm run ocr:backend:deploy
    ```
 
-Notas:
-- El token expira, cuando falle OCR vuelve a correr `npm run docai:token`.
-- Este enfoque funciona en Expo Go porque OCR se hace en la API de Google.
+Ese script:
+- habilita APIs necesarias
+- despliega `backend/ocr-proxy`
+- configura permisos de Document AI al runtime service account
+- actualiza `EXPO_PUBLIC_OCR_BACKEND_URL` en `.env` y `.env.example`
+- deja `.env.example` listo para commitear y que todos consuman el endpoint nuevo

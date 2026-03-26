@@ -3,13 +3,14 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
+    "ensure-env": "node ./scripts/ensure-env.cjs",
+    "start": "npm run ensure-env && expo start",
+    "android": "npm run ensure-env && expo start --android",
+    "ios": "npm run ensure-env && expo start --ios",
+    "web": "npm run ensure-env && expo start --web",
     "lint": "expo lint",
-    "docai:token": "bash ./scripts/refresh-docai-token.sh",
-    "dev": "npm run docai:token && npx expo start --clear"
+    "ocr:backend:deploy": "node ./scripts/deploy-ocr-backend.cjs",
+    "dev": "npm run ensure-env && npx expo start --clear"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

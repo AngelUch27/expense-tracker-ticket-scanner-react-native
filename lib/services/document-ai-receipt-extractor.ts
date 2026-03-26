@@ -26,6 +26,22 @@ type DocumentEntity = {
   properties?: DocumentEntity[];
 };
 
+type OcrBackendResponse = {
+  rawText?: string;
+  entities?: DocumentEntity[];
+  error?: string;
+};
+
+function getOcrBackendUrl() {
+  const backendUrl = process.env.EXPO_PUBLIC_OCR_BACKEND_URL;
+  if (!backendUrl) {
+    throw new Error(
+      "Falta EXPO_PUBLIC_OCR_BACKEND_URL. Corre `npm run ensure-env` o configura esa variable en tu .env."
+    );
+  }
+  return backendUrl;
+}
+
 function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -224,46 +240,35 @@ function parseMerchantFromEntity(entity?: DocumentEntity): string | undefined {
 export async function extractReceiptWithDocumentAi(
   imageUri: string
 ): Promise<DocumentAiReceiptResult> {
-  const projectId = process.env.EXPO_PUBLIC_GOOGLE_DOC_AI_PROJECT_ID;
-  const location = process.env.EXPO_PUBLIC_GOOGLE_DOC_AI_LOCATION ?? "us";
-  const processorId = process.env.EXPO_PUBLIC_GOOGLE_DOC_AI_PROCESSOR_ID;
-  const accessToken = process.env.EXPO_PUBLIC_GOOGLE_DOC_AI_ACCESS_TOKEN;
-
-  if (!projectId || !processorId || !accessToken) {
-    throw new Error(
-      "Faltan variables Document AI: EXPO_PUBLIC_GOOGLE_DOC_AI_PROJECT_ID, EXPO_PUBLIC_GOOGLE_DOC_AI_PROCESSOR_ID y EXPO_PUBLIC_GOOGLE_DOC_AI_ACCESS_TOKEN."
-    );
-  }
-
   const content = await FileSystem.readAsStringAsync(imageUri, {
     encoding: FileSystem.EncodingType.Base64,
   });
 
-  const endpoint = `https://${location}-documentai.googleapis.com/v1/projects/${projectId}/locations/${location}/processors/${processorId}:process`;
+  const endpoint = getOcrBackendUrl();
 
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      rawDocument: {
-        content,
-        mimeType: getMimeTypeFromUri(imageUri),
-      },
-      skipHumanReview: true,
+      content,
+      mimeType: getMimeTypeFromUri(imageUri),
     }),
   });
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Document AI error ${response.status}: ${errorBody}`);
+    const errorBody = await response.text().catch(() => "");
+    throw new Error(`OCR backend error ${response.status}: ${errorBody}`);
   }
 
-  const data = await response.json();
-  const rawText = data?.document?.text ?? "";
-  const entities: DocumentEntity[] = data?.document?.entities ?? [];
+  const data = (await response.json()) as OcrBackendResponse;
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  const rawText = data.rawText ?? "";
+  const entities = Array.isArray(data.entities) ? data.entities : [];
 
   const amountFromEntity = parseAmountFromEntity(
     findEntityByTypes(entities, [
