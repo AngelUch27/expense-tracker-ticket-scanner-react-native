@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Swipeable from "react-native-gesture-handler/Swipeable";
 
 import { db } from "@/lib/db/connection";
 import { useAuth } from "@/context/AuthContext";
@@ -61,6 +62,48 @@ export default function TransactionsScreen() {
     [expenses]
   );
 
+  const deleteExpense = useCallback((expenseId: number) => {
+    try {
+      db.runSync("DELETE FROM expenses WHERE id = ?", [expenseId]);
+      setExpenses((previous) => previous.filter((expense) => expense.id !== expenseId));
+    } catch (error) {
+      console.log("Error deleting expense:", error);
+      Alert.alert("Error", "No se pudo eliminar el movimiento.");
+    }
+  }, []);
+
+  const confirmDeleteExpense = useCallback(
+    (expense: Expense) => {
+      const description = expense.description?.trim() || "este movimiento";
+      Alert.alert(
+        "Eliminar movimiento",
+        `¿Seguro que quieres eliminar ${description}?`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Eliminar",
+            style: "destructive",
+            onPress: () => deleteExpense(expense.id),
+          },
+        ]
+      );
+    },
+    [deleteExpense]
+  );
+
+  const renderRightActions = useCallback(
+    (expense: Expense) => (
+      <Pressable
+        style={({ pressed }) => [styles.deleteAction, pressed && styles.deleteActionPressed]}
+        onPress={() => confirmDeleteExpense(expense)}
+      >
+        <Ionicons name="trash-outline" size={20} color="#ffffff" />
+        <Text style={styles.deleteActionText}>Eliminar</Text>
+      </Pressable>
+    ),
+    [confirmDeleteExpense]
+  );
+
   return (
     <View style={styles.screen}>
       <View style={styles.glowTop} />
@@ -98,20 +141,27 @@ export default function TransactionsScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardLeft}>
-              <View style={styles.iconPill}>
-                <Ionicons name="document-text-outline" size={16} color="#2563eb" />
+          <Swipeable
+            friction={1.8}
+            rightThreshold={32}
+            overshootRight={false}
+            renderRightActions={() => renderRightActions(item)}
+          >
+            <View style={styles.card}>
+              <View style={styles.cardLeft}>
+                <View style={styles.iconPill}>
+                  <Ionicons name="document-text-outline" size={16} color="#2563eb" />
+                </View>
+                <View style={styles.textWrap}>
+                  <Text style={styles.cardTitle}>
+                    {item.description || "Sin descripción"}
+                  </Text>
+                  <Text style={styles.dateText}>{formatDate(item.date)}</Text>
+                </View>
               </View>
-              <View style={styles.textWrap}>
-                <Text style={styles.cardTitle}>
-                  {item.description || "Sin descripción"}
-                </Text>
-                <Text style={styles.dateText}>{formatDate(item.date)}</Text>
-              </View>
+              <Text style={styles.cardAmount}>{formatAmount(Number(item.amount ?? 0))}</Text>
             </View>
-            <Text style={styles.cardAmount}>{formatAmount(Number(item.amount ?? 0))}</Text>
-          </View>
+          </Swipeable>
         )}
       />
     </View>
@@ -267,5 +317,22 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     fontSize: 16,
     marginLeft: 10,
+  },
+  deleteAction: {
+    width: 110,
+    marginLeft: 10,
+    borderRadius: 16,
+    backgroundColor: "#dc2626",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteActionPressed: {
+    backgroundColor: "#b91c1c",
+  },
+  deleteActionText: {
+    marginTop: 2,
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: 12,
   },
 });

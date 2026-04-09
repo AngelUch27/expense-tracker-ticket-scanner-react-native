@@ -1,3 +1,4 @@
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -25,37 +26,44 @@ export default function RootLayout() {
 
   if (!dbReady) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Inicializando base de datos...</Text>
-      </View>
+      <GestureHandlerRootView style={styles.root}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Inicializando base de datos...</Text>
+        </View>
+      </GestureHandlerRootView>
     );
   }
 
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <AuthProvider>
-        <Stack>
-          <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Inicio" }} />
-          <Stack.Screen
-            name="add"
-            options={{
-              title: "Nuevo gasto",
-              headerBackButtonDisplayMode: "minimal",
-              headerShadowVisible: false,
-              headerTintColor: "#0f172a",
-              headerStyle: { backgroundColor: "#f5f9ff" },
-            }}
-          />
-        </Stack>
-      </AuthProvider>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+        <AuthProvider>
+          <Stack>
+            <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Inicio" }} />
+            <Stack.Screen
+              name="add"
+              options={{
+                title: "Nuevo gasto",
+                headerBackButtonDisplayMode: "minimal",
+                headerShadowVisible: false,
+                headerTintColor: "#0f172a",
+                headerStyle: { backgroundColor: "#f5f9ff" },
+              }}
+            />
+          </Stack>
+        </AuthProvider>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
