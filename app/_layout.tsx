@@ -7,7 +7,7 @@ import "react-native-reanimated";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { AuthProvider } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
-import { View, Text } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -25,8 +25,9 @@ export default function RootLayout() {
 
   if (!dbReady) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Inicializando base de datos...</Text>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={styles.loadingText}>Inicializando base de datos...</Text>
       </View>
     );
   }
@@ -37,10 +38,34 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Inicio" }} />
-          <Stack.Screen name="add" options={{ title: "Agregar gasto", headerBackButtonDisplayMode: "minimal" }} />
+          <Stack.Screen
+            name="add"
+            options={{
+              title: "Nuevo gasto",
+              headerBackButtonDisplayMode: "minimal",
+              headerShadowVisible: false,
+              headerTintColor: "#0f172a",
+              headerStyle: { backgroundColor: "#f5f9ff" },
+            }}
+          />
         </Stack>
       </AuthProvider>
       <StatusBar style="auto" />
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f9ff",
+    padding: 24,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: "#334155",
+    fontSize: 14,
+  },
+});
