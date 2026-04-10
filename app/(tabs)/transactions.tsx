@@ -1,6 +1,16 @@
 import { useCallback, useMemo, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 
@@ -31,9 +41,42 @@ function formatDate(value?: string) {
   return value;
 }
 
+function formatLocalDate(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseStorageDate(value?: string) {
+  if (!value) {
+    return new Date();
+  }
+
+  const parts = value.split("-");
+  if (parts.length === 3) {
+    const [year, month, day] = parts.map((part) => Number(part));
+    if (Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)) {
+      return new Date(year, month - 1, day);
+    }
+  }
+
+  const fallback = new Date(value);
+  if (!Number.isNaN(fallback.getTime())) {
+    return fallback;
+  }
+
+  return new Date();
+}
+
 export default function TransactionsScreen() {
   const { user, loading } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDate, setEditDate] = useState(new Date());
+  const [showEditDatePicker, setShowEditDatePicker] = useState(false);
 
   const loadExpenses = useCallback(() => {
     if (loading || !user) return;
@@ -104,6 +147,51 @@ export default function TransactionsScreen() {
     [confirmDeleteExpense]
   );
 
+  const openEditExpense = useCallback((expense: Expense) => {
+    setEditingExpense(expense);
+    setEditAmount(Number(expense.amount ?? 0).toFixed(2));
+    setEditDescription(expense.description ?? "");
+    setEditDate(parseStorageDate(expense.date));
+    setShowEditDatePicker(false);
+  }, []);
+
+  const closeEditModal = useCallback(() => {
+    setEditingExpense(null);
+    setShowEditDatePicker(false);
+  }, []);
+
+  const saveEditedExpense = useCallback(() => {
+    if (!editingExpense) {
+      return;
+    }
+
+    const normalizedAmount = Number(editAmount.replace(",", "."));
+    const normalizedDescription = editDescription.trim();
+
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+      Alert.alert("Monto inválido", "Ingresa un monto mayor a cero.");
+      return;
+    }
+
+    if (!normalizedDescription) {
+      Alert.alert("Campo requerido", "Agrega una descripción para continuar.");
+      return;
+    }
+
+    try {
+      db.runSync(
+        "UPDATE expenses SET amount = ?, description = ?, date = ? WHERE id = ?",
+        [normalizedAmount, normalizedDescription, formatLocalDate(editDate), editingExpense.id]
+      );
+
+      loadExpenses();
+      closeEditModal();
+    } catch (error) {
+      console.log("Error updating expense:", error);
+      Alert.alert("Error", "No se pudo actualizar el movimiento.");
+    }
+  }, [closeEditModal, editAmount, editDate, editDescription, editingExpense, loadExpenses]);
+
   return (
     <View style={styles.screen}>
       <View style={styles.glowTop} />
@@ -153,17 +241,122 @@ export default function TransactionsScreen() {
                   <Ionicons name="document-text-outline" size={16} color="#2563eb" />
                 </View>
                 <View style={styles.textWrap}>
-                  <Text style={styles.cardTitle}>
-                    {item.description || "Sin descripción"}
-                  </Text>
+                  <Text style={styles.cardTitle}>{item.description || "Sin descripción"}</Text>
                   <Text style={styles.dateText}>{formatDate(item.date)}</Text>
                 </View>
               </View>
-              <Text style={styles.cardAmount}>{formatAmount(Number(item.amount ?? 0))}</Text>
+
+              <View style={styles.cardRight}>
+                <Text style={styles.cardAmount}>{formatAmount(Number(item.amount ?? 0))}</Text>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.editButton,
+                    pressed && styles.editButtonPressed,
+                  ]}
+                  onPress={() => openEditExpense(item)}
+                >
+                  <Ionicons name="pencil-outline" size={14} color="#1d4ed8" />
+                  <Text style={styles.editButtonText}>Editar</Text>
+                </Pressable>
+              </View>
             </View>
           </Swipeable>
         )}
       />
+
+      <Modal
+        visible={!!editingExpense}
+        transparent
+        animationType="fade"
+        onRequestClose={closeEditModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Editar movimiento</Text>
+              <Pressable
+                style={({ pressed }) => [styles.modalCloseButton, pressed && styles.modalClosePressed]}
+                onPress={closeEditModal}
+              >
+                <Ionicons name="close" size={20} color="#475569" />
+              </Pressable>
+            </View>
+
+            <Text style={styles.modalLabel}>Monto (MXN)</Text>
+            <View style={styles.modalInputRow}>
+              <Ionicons name="cash-outline" size={18} color="#475569" />
+              <TextInput
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+                value={editAmount}
+                onChangeText={setEditAmount}
+                style={styles.modalInput}
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+
+            <Text style={[styles.modalLabel, styles.modalFieldSpacing]}>Descripción</Text>
+            <View style={styles.modalInputRow}>
+              <Ionicons name="document-text-outline" size={18} color="#475569" />
+              <TextInput
+                placeholder="Ej. Supermercado"
+                value={editDescription}
+                onChangeText={setEditDescription}
+                style={styles.modalInput}
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+
+            <Text style={[styles.modalLabel, styles.modalFieldSpacing]}>Fecha</Text>
+            <Pressable
+              style={({ pressed }) => [styles.modalDateButton, pressed && styles.modalDatePressed]}
+              onPress={() => setShowEditDatePicker(true)}
+            >
+              <View style={styles.modalDateLeft}>
+                <Ionicons name="calendar-outline" size={18} color="#475569" />
+                <Text style={styles.modalDateText}>{editDate.toLocaleDateString("es-MX")}</Text>
+              </View>
+              <Ionicons name="chevron-down" size={18} color="#64748b" />
+            </Pressable>
+
+            {showEditDatePicker ? (
+              <DateTimePicker
+                value={editDate}
+                mode="date"
+                display="default"
+                onChange={(_event, selectedDate) => {
+                  setShowEditDatePicker(false);
+                  if (selectedDate) {
+                    setEditDate(selectedDate);
+                  }
+                }}
+              />
+            ) : null}
+
+            <View style={styles.modalActions}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modalSecondaryButton,
+                  pressed && styles.modalSecondaryButtonPressed,
+                ]}
+                onPress={closeEditModal}
+              >
+                <Text style={styles.modalSecondaryButtonText}>Cancelar</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modalPrimaryButton,
+                  pressed && styles.modalPrimaryButtonPressed,
+                ]}
+                onPress={saveEditedExpense}
+              >
+                <Text style={styles.modalPrimaryButtonText}>Guardar cambios</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -312,11 +505,34 @@ const styles = StyleSheet.create({
     color: "#64748b",
     fontSize: 12,
   },
+  cardRight: {
+    alignItems: "flex-end",
+    marginLeft: 10,
+    gap: 8,
+  },
   cardAmount: {
     color: "#0f172a",
     fontWeight: "900",
     fontSize: 16,
-    marginLeft: 10,
+  },
+  editButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    backgroundColor: "#eff6ff",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  editButtonPressed: {
+    opacity: 0.75,
+  },
+  editButtonText: {
+    color: "#1d4ed8",
+    fontSize: 12,
+    fontWeight: "700",
   },
   deleteAction: {
     width: 110,
@@ -334,5 +550,128 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "700",
     fontSize: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.42)",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  modalCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#dbe4f0",
+    backgroundColor: "#ffffff",
+    padding: 16,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  modalTitle: {
+    color: "#0f172a",
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  modalCloseButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#dbe4f0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalClosePressed: {
+    opacity: 0.75,
+  },
+  modalLabel: {
+    color: "#334155",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  modalFieldSpacing: {
+    marginTop: 12,
+  },
+  modalInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#dbe4f0",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    backgroundColor: "#f8fafc",
+  },
+  modalInput: {
+    flex: 1,
+    color: "#0f172a",
+    fontSize: 15,
+    paddingVertical: 12,
+    marginLeft: 8,
+  },
+  modalDateButton: {
+    borderWidth: 1,
+    borderColor: "#dbe4f0",
+    borderRadius: 14,
+    backgroundColor: "#f8fafc",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  modalDatePressed: {
+    opacity: 0.75,
+  },
+  modalDateLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  modalDateText: {
+    color: "#0f172a",
+    fontSize: 15,
+  },
+  modalActions: {
+    marginTop: 18,
+    flexDirection: "row",
+    gap: 10,
+  },
+  modalSecondaryButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    backgroundColor: "#ffffff",
+  },
+  modalSecondaryButtonPressed: {
+    opacity: 0.75,
+  },
+  modalSecondaryButtonText: {
+    color: "#334155",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  modalPrimaryButton: {
+    flex: 1,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    backgroundColor: "#1d4ed8",
+  },
+  modalPrimaryButtonPressed: {
+    opacity: 0.85,
+  },
+  modalPrimaryButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
   },
 });
