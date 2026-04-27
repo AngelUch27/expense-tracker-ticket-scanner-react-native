@@ -74,3 +74,43 @@ Escanear el código QR que aparece en la terminal o navegador
 La aplicación se cargará automáticamente en el celular.
 
 ⚠️ Importante: La computadora y el celular deben estar conectados a la misma red WiFi.
+
+## OCR con backend (sin gcloud en cada laptop)
+
+Ahora OCR se hace en un backend Cloud Run (`backend/ocr-proxy`) y la app solo consume el endpoint.
+
+### Para tus amigos (solo pull y correr)
+
+1. Instalar dependencias:
+
+   ```bash
+   npm install
+   ```
+
+2. Iniciar app:
+
+   ```bash
+   npm run dev
+   ```
+
+Listo. Ya no necesitan `gcloud auth login` ni refrescar tokens localmente.
+
+### Deploy backend (solo owner/admin, una sola vez o cuando cambie OCR)
+
+1. Configura en tu `.env`:
+- `EXPO_PUBLIC_GOOGLE_DOC_AI_PROJECT_ID`
+- `EXPO_PUBLIC_GOOGLE_DOC_AI_LOCATION` (ej. `us`)
+- `EXPO_PUBLIC_GOOGLE_DOC_AI_PROCESSOR_ID`
+
+2. Despliega Cloud Run:
+
+   ```bash
+   npm run ocr:backend:deploy
+   ```
+
+Ese script:
+- habilita APIs necesarias
+- despliega `backend/ocr-proxy`
+- configura permisos de Document AI al runtime service account
+- actualiza `EXPO_PUBLIC_OCR_BACKEND_URL` en `.env` y `.env.example`
+- deja `.env.example` listo para commitear y que todos consuman el endpoint nuevo
